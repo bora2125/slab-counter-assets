@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slab Counter Pro v3 - Web</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            color: #ecf0f1;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: #3498db;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr 300px;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            background: rgba(52, 73, 94, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .panel h3 {
+            color: #e0e0e0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            background: rgba(52, 152, 219, 0.1);
+            border-color: #2980b9;
+        }
+
+        .upload-area.dragover {
+            background: rgba(52, 152, 219, 0.2);
+            border-color: #2980b9;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin: 5px;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #219a52; }
+
+        .btn-warning { background: #f39c12; }
+        .btn-warning:hover { background: #e67e22; }
+
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+
+        .btn-secondary { background: #95a5a6; }
+        .btn-secondary:hover { background: #7f8c8d; }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #7f8c8d;
+            border-radius: 5px;
+            background: #2c3e50;
+            color: #ecf0f1;
+            font-size: 14px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+        }
+
+        .image-display {
+            background: #2c3e50;
+            border-radius: 10px;
+            min-height: 600px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+
+        .image-container {
+            position: relative;
+            max-width: 100%;
+            max-height: 100%;
+            overflow: auto;
+        }
+
+        .image-display img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.1s ease;
+        }
+
+        .no-image {
+            color: #95a5a6;
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .result-display {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .result-display.warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .result-display.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .image-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #7f8c8d;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .image-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #34495e;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .image-item:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .image-item.active {
+            background: rgba(52, 152, 219, 0.3);
+        }
+
+        .image-status {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .status-uploaded { background: #95a5a6; }
+        .status-processed { background: #3498db; }
+        .status-saved { background: #27ae60; }
+
+        .csv-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: #2c3e50;
+            border-radius: 5px;
+            overflow: hidden;
+            font-size: 12px;
+        }
+
+        .csv-table th,
+        .csv-table td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .csv-table th {
+            background: #34495e;
+            color: #3498db;
+            font-weight: bold;
+        }
+
+        .csv-table tr:hover {
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        .csv-table td {
+            cursor: pointer;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #34495e;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-bar {
+            background: #34495e;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #bdc3c7;
+        }
+
+        .alert {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .alert-success {
+            background: rgba(39, 174, 96, 0.2);
+            border: 1px solid #27ae60;
+            color: #2ecc71;
+        }
+
+        .alert-warning {
+            background: rgba(243, 156, 18, 0.2);
+            border: 1px solid #f39c12;
+            color: #f1c40f;
+        }
+
+        .alert-error {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .lot-input-section {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(39, 174, 96, 0.1);
+            border-radius: 5px;
+            border: 1px solid #27ae60;
+        }
+
+        .lot-input-section.show {
+            display: block;
+        }
+
+        .mode-buttons {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+        }
+
+        .mode-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            background: #7f8c8d;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn.active {
+            background: #e74c3c;
+        }
+
+        .instructions {
+            background: rgba(52, 73, 94, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .zoom-btn {
+            background: rgba(52, 73, 94, 0.8);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .navigation-controls {
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .csv-editor {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2c3e50;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+            min-width: 300px;
+        }
+
+        .csv-editor.show {
+            display: block;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        .overlay.show {
+            display: block;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 SLAB COUNTER PRO v3 - WEB</h1>
+            <p>Detector de slabs con inteligencia artificial - Versión completa</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Panel de controles izquierdo -->
+            <div class="panel">
+                <h3>📁 Gestión de Imágenes</h3>
+                
+                <div class="upload-area" id="uploadArea">
+                    <div>
+                        <p>📸 Arrastra imágenes aquí</p>
+                        <p>o</p>
+                        <button class="btn" onclick="document.getElementById('fileInput').click()">
+                            Seleccionar Archivo
+                        </button>
+                        <button class="btn btn-success" onclick="document.getElementById('multipleFileInput').click()">
+                            Múltiples Archivos
+                        </button>
+                    </div>
+                </div>
+                
+                <input type="file" id="fileInput" class="file-input" 
+                       accept=".jpg,.jpeg,.png,.bmp,.tiff,.webp">
+                <input type="file" id="multipleFileInput" class="file-input" 
+                       accept=".jpg,.jpeg,.png,.bmp,.tiff,.webp" multiple>
+
+                <div class="navigation-controls">
+                    <button class="btn btn-secondary btn-small" onclick="previousImage()">⬅️ Anterior</button>
+                    <button class="btn btn-secondary btn-small" onclick="nextImage()">Siguiente ➡️</button>
+                </div>
+
+                <div class="image-list" id="imageList">
+                    <div style="text-align: center; padding: 20px; color: #95a5a6;">
+                        No hay imágenes cargadas
+                    </div>
+                </div>
+
+                <h3>🔧 Controles de Detección</h3>
+
+                <div class="form-group">
+                    <label for="confidenceSlider">Confidence Threshold:</label>
+                    <input type="range" id="confidenceSlider" class="form-control" 
+                           min="0.1" max="1.0" step="0.01" value="{{ default_confidence }}">
+                    <div style="text-align: center; margin-top: 5px;">
+                        <span id="confidenceValue">{{ "%.2f"|format(default_confidence) }}</span>
+                    </div>
+                </div>
+
+                <button id="processBtn" class="btn btn-success" onclick="processCurrentImage()" disabled>
+                    🚀 DETECTAR SLABS
+                </button>
+
+                <div class="loading" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <p>Procesando imagen...</p>
+                </div>
+
+                <h3>🖱️ Modo de Interacción</h3>
+                
+                <div class="mode-buttons">
+                    <button class="mode-btn active" id="viewMode" onclick="setMode('view')">👀 Ver</button>
+                    <button class="mode-btn" id="addMode" onclick="setMode('add')">➕ Agregar</button>
+                    <button class="mode-btn" id="removeMode" onclick="setMode('remove')">➖ Eliminar</button>
+                    <button class="mode-btn" id="areaMode" onclick="setMode('area')">🗺️ Área</button>
+                </div>
+
+                <div class="instructions" id="modeInstructions">
+                    <strong>Modo Ver:</strong> Navegar e interactuar con la imagen
+                </div>
+
+                <div id="resultDisplay" class="result-display" style="display: none;">
+                    <div id="resultText"></div>
+                </div>
+
+                <div id="lotInputSection" class="lot-input-section">
+                    <h4>🏷️ Asignar Lote</h4>
+                    <div class="form-group">
+                        <label for="lotIdInput">ID de Lote:</label>
+                        <input type="text" id="lotIdInput" class="form-control" 
+                               placeholder="Ingrese ID del lote">
+                    </div>
+                    <button class="btn btn-warning" onclick="saveLot()">
+                        💾 Guardar Lote
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearArea()">
+                        🗑️ Limpiar Área
+                    </button>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="showCSVData()">
+                        📊 Ver CSV
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadCSV()">
+                        📥 Descargar CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Panel central - Imagen -->
+            <div class="panel">
+                <h3>🖼️ Imagen con Detecciones</h3>
+                
+                <div class="image-display" id="imageDisplay">
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" onclick="zoomIn()">+</button>
+                        <button class="zoom-btn" onclick="zoomOut()">-</button>
+                        <button class="zoom-btn" onclick="resetZoom()">🔄</button>
+                    </div>
+                    
+                    <div class="no-image" id="noImageText">
+                        Selecciona una imagen para comenzar
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel derecho - Datos CSV -->
+            <div class="panel">
+                <h3>📋 Resumen CSV</h3>
+                <div id="csvDataContainer">
+                    <p style="color: #95a5a6; text-align: center;">
+                        No hay datos aún
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar" id="statusBar">
+            Listo para procesar imágenes
+        </div>
+    </div>
+
+    <!-- Overlay y editor CSV -->
+    <div class="overlay" id="overlay" onclick="closeCSVEditor()"></div>
+    <div class="csv-editor" id="csvEditor">
+        <h3>Editar Celda</h3>
+        <div class="form-group">
+            <label for="editValue">Nuevo valor:</label>
+            <input type="text" id="editValue" class="form-control">
+        </div>
+        <button class="btn btn-success" onclick="saveCSVEdit()">Guardar</button>
+        <button class="btn btn-secondary" onclick="closeCSVEditor()">Cancelar</button>
+    </div>
+
+    <script>
+        // Variables globales
+        let uploadedImages = [];
+        let currentImageIndex = -1;
+        let currentDetections = [];
+        let currentMode = 'view';
+        let zoomLevel = 1;
+        let selectedAreaPoints = [];
+        let isDrawingArea = false;
+        let editingCSVCell = null;
+
+        // Configurar slider de confidence
+        const confidenceSlider = document.getElementById('confidenceSlider');
+        const confidenceValue = document.getElementById('confidenceValue');
+        
+        confidenceSlider.addEventListener('input', function() {
+            confidenceValue.textContent = parseFloat(this.value).toFixed(2);
+        });
+
+        // Configurar drag & drop
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const multipleFileInput = document.getElementById('multipleFileInput');
+
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                if (files.length === 1) {
+                    handleSingleFile(files[0]);
+                } else {
+                    handleMultipleFiles(files);
+                }
+            }
+        });
+
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                handleSingleFile(this.files[0]);
+            }
+        });
+
+        multipleFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                handleMultipleFiles(this.files);
+            }
+        });
+
+        // Configurar eventos de imagen
+        const imageDisplay = document.getElementById('imageDisplay');
+        
+        imageDisplay.addEventListener('click', function(e) {
+            handleImageClick(e);
+        });
+
+        imageDisplay.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        });
+
+        // Manejo de archivos
+        function handleSingleFile(file) {
+            if (!validateFile(file)) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            updateStatus('Subiendo archivo...');
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus(`Archivo cargado: ${data.filename}`);
+                    showAlert(`Archivo cargado: ${data.filename}`, 'success');
+                    loadImageList();
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error subiendo archivo', 'error');
+            });
+        }
+
+        function handleMultipleFiles(files) {
+            const formData = new FormData();
+            
+            for (let file of files) {
+                if (validateFile(file)) {
+                    formData.append('files', file);
+                }
+            }
+
+            updateStatus('Subiendo múltiples archivos...');
+            
+            fetch('/upload_multiple', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    updateStatus(`${data.count} archivos cargados`);
+                    showAlert(`${data.count} archivos cargados exitosamente`, 'success');
+                    if (data.errors.length > 0) {
+                        showAlert(`Errores: ${data.errors.join(', ')}`, 'warning');
+                    }
+                    loadImageList();
+                } else {
+                    showAlert('Error subiendo archivos', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error subiendo archivos', 'error');
+            });
+        }
+
+        function validateFile(file) {
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/bmp', 'image/tiff', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showAlert('Tipo de archivo no permitido', 'error');
+                return false;
+            }
+
+            if (file.size > 16 * 1024 * 1024) {
+                showAlert('Archivo muy grande. Máximo 16MB', 'error');
+                return false;
+            }
+
+            return true;
+        }
+
+        // Gestión de lista de imágenes
+        function loadImageList() {
+            fetch('/images')
+            .then(response => response.json())
+            .then(data => {
+                uploadedImages = data;
+                displayImageList();
+                
+                if (uploadedImages.length > 0 && currentImageIndex === -1) {
+                    selectImage(0);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function displayImageList() {
+            const imageList = document.getElementById('imageList');
+            
+            if (uploadedImages.length === 0) {
+                imageList.innerHTML = '<div style="text-align: center; padding: 20px; color: #95a5a6;">No hay imágenes cargadas</div>';
+                return;
+            }
+
+            let html = '';
+            uploadedImages.forEach((image, index) => {
+                const isActive = index === currentImageIndex ? 'active' : '';
+                const statusClass = image.has_csv_data ? 'status-saved' : 
+                                  image.status === 'processed' ? 'status-processed' : 'status-uploaded';
+                
+                html += `
+                    <div class="image-item ${isActive}" onclick="selectImage(${index})">
+                        <div>
+                            <div style="font-weight: bold;">${image.filename}</div>
+                            <div style="font-size: 10px; color: #bdc3c7;">${image.point_count} puntos</div>
+                        </div>
+                        <span class="image-status ${statusClass}">
+                            ${image.has_csv_data ? '✅' : image.status === 'processed' ? '🟡' : '❌'}
+                        </span>
+                    </div>
+                `;
+            });
+            
+            imageList.innerHTML = html;
+        }
+
+        function selectImage(index) {
+            if (index >= 0 && index < uploadedImages.length) {
+                currentImageIndex = index;
+                loadCurrentImage();
+                displayImageList();
+                
+                document.getElementById('processBtn').disabled = false;
+            }
+        }
+
+        function loadCurrentImage() {
+            if (currentImageIndex < 0 || !uploadedImages[currentImageIndex]) return;
+            
+            const image = uploadedImages[currentImageIndex];
+            
+            fetch('/get_image_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: image.filename
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentDetections = data.points;
+                    showImageWithDetections(data.image_data);
+                    showResults(data.total_points);
+                    updateStatus(`Imagen cargada: ${image.filename}`);
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error cargando imagen', 'error');
+            });
+        }
+
+        // Navegación
+        function previousImage() {
+            if (currentImageIndex > 0) {
+                selectImage(currentImageIndex - 1);
+            }
+        }
+
+        function nextImage() {
+            if (currentImageIndex < uploadedImages.length - 1) {
+                selectImage(currentImageIndex + 1);
+            }
+        }
+
+        // Procesamiento
+        function processCurrentImage() {
+            if (currentImageIndex < 0 || !uploadedImages[currentImageIndex]) {
+                showAlert('No hay imagen seleccionada', 'error');
+                return;
+            }
+
+            const image = uploadedImages[currentImageIndex];
+            const confidence = parseFloat(confidenceSlider.value);
+            
+            document.getElementById('loadingIndicator').classList.add('show');
+            document.getElementById('processBtn').disabled = true;
+            updateStatus('Procesando imagen con IA...');
+
+            fetch('/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: image.filename,
+                    filepath: image.filepath,
+                    confidence: confidence
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('loadingIndicator').classList.remove('show');
+                document.getElementById('processBtn').disabled = false;
+
+                if (data.success) {
+                    currentDetections = data.detections;
+                    showImageWithDetections(data.image_data);
+                    showResults(data.count);
+                    updateStatus(`Procesado. ${data.count} slabs detectados.`);
+                    loadImageList();
+                    loadCSVData();
+                } else {
+                    showAlert(data.error, 'error');
+                    updateStatus('Error en procesamiento');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('loadingIndicator').classList.remove('show');
+                document.getElementById('processBtn').disabled = false;
+                showAlert('Error procesando imagen', 'error');
+                updateStatus('Error en procesamiento');
+            });
+        }
+
+        // Modos de interacción
+        function setMode(mode) {
+            currentMode = mode;
+            
+            // Actualizar botones
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`${mode}Mode`).classList.add('active');
+            
+            // Actualizar instrucciones
+            const instructions = document.getElementById('modeInstructions');
+            switch(mode) {
+                case 'view':
+                    instructions.innerHTML = '<strong>Modo Ver:</strong> Navegar e interactuar con la imagen';
+                    imageDisplay.style.cursor = 'grab';
+                    break;
+                case 'add':
+                    instructions.innerHTML = '<strong>Modo Agregar:</strong> Click para agregar puntos manuales';
+                    imageDisplay.style.cursor = 'crosshair';
+                    break;
+                case 'remove':
+                    instructions.innerHTML = '<strong>Modo Eliminar:</strong> Click para eliminar puntos cercanos';
+                    imageDisplay.style.cursor = 'not-allowed';
+                    break;
+                case 'area':
+                    instructions.innerHTML = '<strong>Modo Área:</strong> Click y arrastra para definir área de lote';
+                    imageDisplay.style.cursor = 'crosshair';
+                    break;
+            }
+            
+            // Limpiar área si cambia de modo
+            if (mode !== 'area') {
+                clearArea();
+            }
+        }
+
+        // Manejo de clicks en imagen
+        function handleImageClick(e) {
+            if (currentImageIndex < 0 || !uploadedImages[currentImageIndex]) return;
+            
+            const rect = e.target.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / zoomLevel);
+            const y = Math.round((e.clientY - rect.top) / zoomLevel);
+            
+            const image = uploadedImages[currentImageIndex];
+            
+            switch(currentMode) {
+                case 'add':
+                    addManualPoint(image.filename, x, y);
+                    break;
+                case 'remove':
+                    removePoint(image.filename, x, y);
+                    break;
+                case 'area':
+                    handleAreaClick(x, y);
+                    break;
+            }
+        }
+
+        function addManualPoint(filename, x, y) {
+            fetch('/add_point', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: filename,
+                    x: x,
+                    y: y
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadCurrentImage();
+                    showAlert('Punto agregado', 'success');
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error agregando punto', 'error');
+            });
+        }
+
+        function removePoint(filename, x, y) {
+            fetch('/remove_point', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: filename,
+                    x: x,
+                    y: y
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadCurrentImage();
+                    showAlert('Punto removido', 'success');
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error removiendo punto', 'error');
+            });
+        }
+
+        function handleAreaClick(x, y) {
+            selectedAreaPoints.push({x: x, y: y});
+            
+            if (selectedAreaPoints.length >= 3) {
+                selectPointsInArea();
+            }
+        }
+
+        function selectPointsInArea() {
+            if (currentImageIndex < 0 || !uploadedImages[currentImageIndex] || selectedAreaPoints.length < 3) return;
+            
+            const image = uploadedImages[currentImageIndex];
+            
+            fetch('/select_area', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: image.filename,
+                    polygon_points: selectedAreaPoints
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert(`${data.count} puntos seleccionados en área`, 'success');
+                    document.getElementById('lotInputSection').classList.add('show');
+                } else {
+                    showAlert('Error seleccionando área', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error seleccionando área', 'error');
+            });
+        }
+
+        function clearArea() {
+            selectedAreaPoints = [];
+            document.getElementById('lotInputSection').classList.remove('show');
+            document.getElementById('lotIdInput').value = '';
+        }
+
+        // Zoom
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel * 1.2, 5);
+            applyZoom();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel / 1.2, 0.1);
+            applyZoom();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            applyZoom();
+        }
+
+        function applyZoom() {
+            const img = document.querySelector('#imageDisplay img');
+            if (img) {
+                img.style.transform = `scale(${zoomLevel})`;
+            }
+        }
+
+        // Visualización
+        function showImageWithDetections(imageData) {
+            const imageDisplay = document.getElementById('imageDisplay');
+            const noImageText = document.getElementById('noImageText');
+            
+            if (imageData) {
+                noImageText.style.display = 'none';
+                imageDisplay.innerHTML = `
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" onclick="zoomIn()">+</button>
+                        <button class="zoom-btn" onclick="zoomOut()">-</button>
+                        <button class="zoom-btn" onclick="resetZoom()">🔄</button>
+                    </div>
+                    <img src="${imageData}" alt="Imagen con detecciones" style="transform: scale(${zoomLevel})">
+                `;
+            } else {
+                noImageText.style.display = 'block';
+                imageDisplay.innerHTML = `
+                    <div class="zoom-controls">
+                        <button class="zoom-btn" onclick="zoomIn()">+</button>
+                        <button class="zoom-btn" onclick="zoomOut()">-</button>
+                        <button class="zoom-btn" onclick="resetZoom()">🔄</button>
+                    </div>
+                    <div class="no-image" id="noImageText">Selecciona una imagen para comenzar</div>
+                `;
+            }
+        }
+
+        function showResults(count) {
+            const resultDisplay = document.getElementById('resultDisplay');
+            const resultText = document.getElementById('resultText');
+            
+            if (count > 0) {
+                resultText.innerHTML = `🎯 <strong>${count} slabs detectados</strong><br>Define área y asigna lote`;
+                resultDisplay.className = 'result-display';
+            } else {
+                resultText.innerHTML = '⚠️ Sin detecciones<br>Ajusta el threshold o agrega puntos manualmente';
+                resultDisplay.className = 'result-display warning';
+            }
+            
+            resultDisplay.style.display = 'block';
+        }
+
+        // Guardar lote
+        function saveLot() {
+            const lotId = document.getElementById('lotIdInput').value.trim().toUpperCase();
+            
+            if (!lotId) {
+                showAlert('Ingrese un ID para el lote', 'error');
+                return;
+            }
+
+            if (currentImageIndex < 0 || !uploadedImages[currentImageIndex]) {
+                showAlert('No hay imagen seleccionada', 'error');
+                return;
+            }
+
+            if (selectedAreaPoints.length < 3) {
+                showAlert('Defina un área primero', 'error');
+                return;
+            }
+
+            const image = uploadedImages[currentImageIndex];
+
+            fetch('/save_lot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    lot_id: lotId,
+                    points: selectedAreaPoints,
+                    filename: image.filename
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let message = data.message;
+                    if (data.duplicate_warning) {
+                        message += `\n⚠️ ADVERTENCIA: Lote duplicado (existe en: ${data.existing_image})`;
+                        showAlert(message, 'warning');
+                    } else {
+                        showAlert(message, 'success');
+                    }
+                    
+                    clearArea();
+                    loadCurrentImage();
+                    loadImageList();
+                    loadCSVData();
+                    updateStatus('Lote guardado exitosamente');
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error guardando lote', 'error');
+            });
+        }
+
+        // CSV
+        function loadCSVData() {
+            fetch('/csv_data')
+            .then(response => response.json())
+            .then(data => {
+                displayCSVData(data);
+            })
+            .catch(error => {
+                console.error('Error loading CSV:', error);
+            });
+        }
+
+        function displayCSVData(data) {
+            const container = document.getElementById('csvDataContainer');
+            
+            if (data.length === 0) {
+                container.innerHTML = '<p style="color: #95a5a6; text-align: center;">No hay datos aún</p>';
+                return;
+            }
+
+            let html = '<table class="csv-table">';
+            html += '<thead><tr><th>Lote</th><th>Slabs</th><th>Imagen</th><th>Fecha</th></tr></thead>';
+            html += '<tbody>';
+            
+            data.forEach((row, rowIndex) => {
+                html += '<tr>';
+                row.forEach((cell, colIndex) => {
+                    const shortCell = cell.length > 12 ? cell.substring(0, 12) + '...' : cell;
+                    html += `<td onclick="editCSVCell(${rowIndex}, ${colIndex}, '${cell}')" title="${cell}">${shortCell}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function editCSVCell(rowIndex, colIndex, currentValue) {
+            editingCSVCell = {row: rowIndex, col: colIndex};
+            document.getElementById('editValue').value = currentValue;
+            document.getElementById('overlay').classList.add('show');
+            document.getElementById('csvEditor').classList.add('show');
+            document.getElementById('editValue').focus();
+        }
+
+        function saveCSVEdit() {
+            if (!editingCSVCell) return;
+            
+            const newValue = document.getElementById('editValue').value;
+            
+            fetch('/update_csv', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    row_index: editingCSVCell.row,
+                    col_index: editingCSVCell.col,
+                    new_value: newValue
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('CSV actualizado', 'success');
+                    loadCSVData();
+                } else {
+                    showAlert(data.error, 'error');
+                }
+                closeCSVEditor();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error actualizando CSV', 'error');
+                closeCSVEditor();
+            });
+        }
+
+        function closeCSVEditor() {
+            document.getElementById('overlay').classList.remove('show');
+            document.getElementById('csvEditor').classList.remove('show');
+            editingCSVCell = null;
+        }
+
+        function showCSVData() {
+            loadCSVData();
+        }
+
+        function downloadCSV() {
+            window.open('/download_csv', '_blank');
+        }
+
+        // Utilidades
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            const container = document.querySelector('.container');
+            container.insertBefore(alert, container.firstChild);
+            
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.parentNode.removeChild(alert);
+                }
+            }, 5000);
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusBar').textContent = message;
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            loadImageList();
+            loadCSVData();
+        });
+    </script>
+</body>
+</html>

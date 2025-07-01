@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Slab Detector V8 - Professional Edition</title>
+    <style>
+        /* CSS Variables inspiradas en ShadCN */
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 222.2 84% 4.9%;
+            --primary: 221.2 83.2% 53.3%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96%;
+            --secondary-foreground: 222.2 84% 4.9%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96%;
+            --accent-foreground: 222.2 84% 4.9%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 221.2 83.2% 53.3%;
+            --radius: 0.75rem;
+        }
+
+        .dark {
+            --background: 222.2 84% 4.9%;
+            --foreground: 210 40% 98%;
+            --card: 222.2 84% 4.9%;
+            --card-foreground: 210 40% 98%;
+            --popover: 222.2 84% 4.9%;
+            --popover-foreground: 210 40% 98%;
+            --primary: 217.2 91.2% 59.8%;
+            --primary-foreground: 222.2 84% 4.9%;
+            --secondary: 217.2 32.6% 17.5%;
+            --secondary-foreground: 210 40% 98%;
+            --muted: 217.2 32.6% 17.5%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --accent: 217.2 32.6% 17.5%;
+            --accent-foreground: 210 40% 98%;
+            --destructive: 0 62.8% 30.6%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 217.2 32.6% 17.5%;
+            --input: 217.2 32.6% 17.5%;
+            --ring: 224.3 76.3% 48%;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Componentes modernos tipo ShadCN */
+        .card {
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            color: hsl(var(--card-foreground));
+        }
+
+        .card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid hsl(var(--border));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: hsl(var(--foreground));
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-content {
+            padding: 1.5rem;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: calc(var(--radius) - 2px);
+            font-size: 0.875rem;
+            font-weight: 500;
+            height: 2.5rem;
+            padding: 0 1rem;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+        }
+
+        .btn-primary:hover {
+            background: hsl(var(--primary) / 0.9);
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-secondary {
+            background: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+        }
+
+        .btn-secondary:hover {
+            background: hsl(var(--secondary) / 0.8);
+        }
+
+        .btn-destructive {
+            background: hsl(var(--destructive));
+            color: hsl(var(--destructive-foreground));
+        }
+
+        .btn-destructive:hover {
+            background: hsl(var(--destructive) / 0.9);
+        }
+
+        .input {
+            flex: 1;
+            border-radius: calc(var(--radius) - 2px);
+            border: 1px solid hsl(var(--input));
+            background: hsl(var(--background));
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .input:focus {
+            outline: none;
+            ring: 2px solid hsl(var(--ring));
+            border-color: hsl(var(--ring));
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: calc(var(--radius) - 2px);
+            padding: 0.125rem 0.625rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+        }
+
+        .badge-success {
+            background: hsl(142.1 76.2% 36.3%);
+            color: hsl(355.7 100% 97.3%);
+        }
+
+        .badge-warning {
+            background: hsl(32.6 98.7% 53.9%);
+            color: hsl(355.7 100% 97.3%);
+        }
+
+        .badge-error {
+            background: hsl(var(--destructive));
+            color: hsl(var(--destructive-foreground));
+        }
+
+        /* Layout principal */
+        .app-container {
+            min-height: 100vh;
+            background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--muted)) 100%);
+        }
+
+        .app-header {
+            background: hsl(var(--card));
+            border-bottom: 1px solid hsl(var(--border));
+            padding: 1rem 2rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .app-title {
+            font-size: 1.875rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, hsl(var(--primary)), hsl(221.2 83.2% 43.3%));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .app-subtitle {
+            color: hsl(var(--muted-foreground));
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr 360px;
+            gap: 1.5rem;
+            padding: 1.5rem 2rem;
+            height: calc(100vh - 100px);
+        }
+
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: hsl(var(--muted)) transparent;
+        }
+
+        .left-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .left-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .left-panel::-webkit-scrollbar-thumb {
+            background: hsl(var(--muted));
+            border-radius: 3px;
+        }
+
+        .center-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: hsl(var(--muted)) transparent;
+        }
+
+        .right-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .right-panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .right-panel::-webkit-scrollbar-thumb {
+            background: hsl(var(--muted));
+            border-radius: 3px;
+        }
+
+        /* Área de carga moderna */
+        .upload-area {
+            border: 2px dashed hsl(var(--border));
+            border-radius: var(--radius);
+            background: hsl(var(--muted) / 0.3);
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: hsl(var(--primary));
+            background: hsl(var(--primary) / 0.05);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.drag-over {
+            border-color: hsl(var(--primary));
+            background: hsl(var(--primary) / 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: hsl(var(--muted-foreground));
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            color: hsl(var(--muted-foreground));
+            font-size: 0.875rem;
+        }
+
+        .upload-text strong {
+            color: hsl(var(--foreground));
+        }
+
+        /* Controles modernos */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .confidence-control {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .confidence-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            background: hsl(var(--muted));
+            outline: none;
+            border-radius: 3px;
+            flex: 1;
+        }
+
+        .confidence-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: hsl(var(--primary));
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .confidence-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: hsl(var(--primary));
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Imagen con zoom moderna */
+        .image-container {
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            overflow: hidden;
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-placeholder {
+            color: hsl(var(--muted-foreground));
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .image-placeholder-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Alertas modernas */
+        .alert {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius);
+            font-weight: 500;
+            z-index: 1000;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            animation: slideInRight 0.3s ease-out;
+            max-width: 400px;
+        }
+
+        .alert-success {
+            background: hsl(142.1 76.2% 36.3%);
+            color: white;
+        }
+
+        .alert-error {
+            background: hsl(var(--destructive));
+            color: hsl(var(--destructive-foreground));
+        }
+
+        .alert-warning {
+            background: hsl(32.6 98.7% 53.9%);
+            color: white;
+        }
+
+        /* Modales modernos */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .modal.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: hsl(var(--card));
+            border-radius: var(--radius);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: auto;
+            transform: scale(0.95) translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        /* Animaciones */
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Puntos de detección modernos */
+        .point {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            color: white;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .point:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .point.original {
+            background: hsl(var(--primary));
+        }
+
+        .point.manual {
+            background: hsl(142.1 76.2% 36.3%);
+        }
+
+        .point.selected {
+            background: hsl(32.6 98.7% 53.9%);
+            animation: pulse 1s infinite;
+        }
+
+        .point.batch {
+            border-width: 3px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Grid de imágenes moderno */
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .image-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: calc(var(--radius) - 2px);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+
+        .image-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        .image-item.active {
+            border-color: hsl(var(--primary));
+            box-shadow: 0 0 0 4px hsl(var(--primary) / 0.2);
+        }
+
+        .image-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .image-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            color: white;
+            padding: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        /* Responsivo */
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 300px 1fr 300px;
+                padding: 1rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+                height: auto;
+                min-height: calc(100vh - 100px);
+            }
+            
+            .app-header {
+                padding: 1rem;
+            }
+        }
+
+        /* Tabla histórica moderna */
+        .table-container {
+            background: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table thead {
+            background: hsl(var(--muted));
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid hsl(var(--border));
+        }
+
+        .table th {
+            font-weight: 600;
+            color: hsl(var(--foreground));
+        }
+
+        .table tbody tr:hover {
+            background: hsl(var(--muted) / 0.5);
+        }
+
+        /* Filtros modernos */
+        .filters-container {
+            background: hsl(var(--muted) / 0.3);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .filter-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: hsl(var(--foreground));
+        }
+
+        /* Mejoras específicas para elementos editables */
+        .editable-batch-number {
+            border-radius: calc(var(--radius) - 4px);
+            transition: all 0.2s ease;
+        }
+
+        .editable-batch-number:hover {
+            background: hsl(var(--primary) / 0.1) !important;
+            transform: scale(1.05);
+        }
+
+        /* Estilos para el tema toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1001;
+        }
+    </style>
+</head>
+<body>
+    <!-- Toggle de tema -->
+    <button class="theme-toggle btn btn-secondary" onclick="toggleTheme()" title="Cambiar tema">
+        🌙
+    </button>
+
+    <div class="app-container">
+        <!-- Header moderno -->
+        <header class="app-header">
+            <div class="app-title">
+                🔬 Basic Slab Detector
+                <span class="badge">V8 Professional</span>
+            </div>
+            <p class="app-subtitle">Sistema avanzado de detección de palanquillas con IA • Base de datos histórica • Gestión inteligente de lotes</p>
+        </header>
+
+        <!-- Layout principal -->
+        <div class="main-grid">
+            <!-- Panel izquierdo -->
+            <div class="left-panel">
+                <!-- Carga de archivos -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            📤 Cargar Imagen
+                        </h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">📁</div>
+                            <div class="upload-text">
+                                <strong>Arrastra tu imagen aquí</strong><br>
+                                o haz click para seleccionar<br>
+                                <small>PNG, JPG, JPEG, BMP, TIFF, WEBP (máx. 16MB)</small>
+                            </div>
+                            <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controles de detección -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            ⚙️ Configuración
+                        </h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="confidence-control">
+                            <label class="filter-label">Confidence:</label>
+                            <input type="range" id="confidenceSlider" class="confidence-slider" 
+                                   min="0.1" max="1.0" step="0.01" value="0.60">
+                            <span id="confidenceValue" class="badge">0.60</span>
+                        </div>
+                        
+                        <div style="margin-top: 1rem;">
+                            <button id="detectBtn" class="btn btn-primary" style="width: 100%;" disabled>
+                                🔍 Detectar Slabs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modo edición -->
+                <div class="card" id="editCard" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            ✏️ Modo Edición
+                        </h3>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                            <button id="editSlabsBtn" class="btn btn-secondary" style="flex: 1;">
+                                📍 Editar Slabs
+                            </button>
+                            <button id="editBatchesBtn" class="btn btn-secondary" style="flex: 1;">
+                                📦 Crear Lotes
+                            </button>
+                        </div>
+                        
+                        <!-- Controles de slabs -->
+                        <div id="slabControls" style="display: none;">
+                            <p style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin-bottom: 0.5rem;">
+                                Click izquierdo: agregar • Click derecho: eliminar
+                            </p>
+                        </div>
+                        
+                        <!-- Controles de lotes -->
+                        <div id="batchControls" style="display: none;">
+                            <p style="font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin-bottom: 1rem;">
+                                Selecciona slabs arrastrando el mouse
+                            </p>
+                            
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <label style="font-size: 0.875rem; font-weight: 500;">Lote:</label>
+                                <input type="number" id="batchNumber" class="input" value="1" min="1" style="width: 80px;">
+                                <button id="assignBatchBtn" class="btn btn-primary" disabled>
+                                    ✅ Asignar
+                                </button>
+                            </div>
+                            
+                            <p id="selectedCount" style="font-size: 0.875rem; margin-top: 0.5rem; color: hsl(var(--muted-foreground));">
+                                0 slabs seleccionados
+                            </p>
+                        </div>
+                        
+                        <button id="exitEditBtn" class="btn btn-destructive" style="width: 100%; margin-top: 1rem;">
+                            ❌ Salir de Edición
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grid de imágenes -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            🖼️ Imágenes Cargadas
+                            <span id="imageCount" class="badge">0</span>
+                        </h3>
+                    </div>
+                    <div class="card-content">
+                        <div id="imagesGrid" class="images-grid">
+                            <div id="noImages" style="text-align: center; padding: 2rem; color: hsl(var(--muted-foreground)); font-size: 0.875rem;">
+                                No hay imágenes cargadas
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel central -->
+            <div class="center-panel">
+                <div class="card" style="height: 100%;">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            🔬 Vista de Detección
+                        </h3>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button id="previewBtn" class="btn btn-secondary" style="display: none;">
+                                👁️ Preview
+                            </button>
+                            <button id="zoomResetBtn" class="btn btn-secondary" style="display: none;">
+                                🔍 Reset Zoom
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-content" style="height: calc(100% - 80px);">
+                        <div class="image-container" id="imageContainer">
+                            <div id="noActiveImage" class="image-placeholder">
+                                <div class="image-placeholder-icon">🖼️</div>
+                                <p>Carga una imagen para comenzar la detección</p>
+                                <p style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.7;">
+                                    Arrastra archivos al área de carga o selecciona desde el explorador
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel derecho -->
+            <div class="right-panel">
+                <!-- Acciones rápidas -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            ⚡ Acciones Rápidas
+                        </h3>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                            <button class="btn btn-primary" onclick="generateBatchCSV()" style="width: 100%;">
+                                📄 Descargar CSV de Lotes
+                            </button>
+                            <button class="btn btn-secondary" onclick="mostrarTablaHistorica()" style="width: 100%;">
+                                📊 Ver Histórico de Lotes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info de imagen activa -->
+                <div class="card" id="activeImageInfo" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            🎯 Imagen Activa
+                        </h3>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.875rem;">
+                            <div>
+                                <strong>Nombre:</strong> <span id="activeImageName">-</span>
+                            </div>
+                            <div>
+                                <strong>Estado:</strong> <span id="activeImageStatus" class="badge">-</span>
+                            </div>
+                            <div>
+                                <strong>Slabs en Lotes:</strong> <span id="activeImageSlabs" class="badge badge-success">0</span>
+                            </div>
+                            <div>
+                                <strong>Lotes:</strong> <span id="activeImageBatches">-</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Detalle de slabs por lote -->
+                        <div id="batchDetails" style="display: none; margin-top: 1rem;">
+                            <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; color: hsl(var(--foreground));">
+                                📊 Detalle por Lote
+                            </h4>
+                            <div id="batchDetailList">
+                                <!-- Se llenará dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales -->
+    
+    <!-- Modal para número de lote -->
+    <div id="batchModal" class="modal">
+        <div class="modal-content" style="width: 400px; padding: 0;">
+            <div class="card-header">
+                <h3 class="card-title">📦 Crear Nuevo Lote</h3>
+            </div>
+            <div class="card-content">
+                <p style="margin-bottom: 1rem; color: hsl(var(--muted-foreground));">
+                    Tienes <span id="modalSelectedCount" class="badge badge-success">0</span> slabs seleccionados
+                </p>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Número de Lote:</label>
+                    <input type="number" id="modalBatchNumber" class="input" value="1" min="1">
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+                    <button class="btn btn-secondary" onclick="closeBatchModal()" style="flex: 1;">
+                        ❌ Cancelar
+                    </button>
+                    <button class="btn btn-primary" onclick="confirmBatchAssignment()" style="flex: 1;">
+                        ✅ Crear Lote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para alertas de lotes duplicados -->
+    <div id="duplicadoModal" class="modal">
+        <div class="modal-content" style="width: 500px; padding: 0;">
+            <div class="card-header">
+                <h3 class="card-title" style="color: hsl(var(--destructive));">
+                    ⚠️ Lote Duplicado Detectado
+                </h3>
+            </div>
+            <div class="card-content">
+                <div style="background: hsl(32.6 98.7% 53.9% / 0.1); border: 1px solid hsl(32.6 98.7% 53.9% / 0.3); border-radius: var(--radius); padding: 1rem; margin: 1rem 0;">
+                    <p style="margin-bottom: 0.75rem; font-weight: 600; color: hsl(32.6 98.7% 33.9%);">
+                        📋 Información del Lote Existente:
+                    </p>
+                    <div id="duplicadoDetalles" style="font-size: 0.875rem; color: hsl(32.6 98.7% 33.9%);">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
+                
+                <p style="text-align: center; margin: 1rem 0; color: hsl(var(--muted-foreground)); font-size: 0.875rem;">
+                    El sistema creará una nueva entrada separada con el mismo número de lote.
+                </p>
+                
+                <div style="text-align: center;">
+                    <button id="duplicadoOkBtn" class="btn btn-primary" style="padding: 0.75rem 2rem;">
+                        ✅ Entendido, Continuar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para tabla histórica -->
+    <div id="tablaHistoricaModal" class="modal">
+        <div class="modal-content" style="width: 90%; max-width: 1200px; max-height: 90vh; padding: 0;">
+            <div class="card-header">
+                <h3 class="card-title">📊 Histórico de Lotes</h3>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="btn btn-secondary" onclick="cerrarTablaHistorica()">
+                        ❌ Cerrar
+                    </button>
+                </div>
+            </div>
+            <div class="card-content" style="max-height: calc(90vh - 120px); overflow-y: auto;">
+                <p style="text-align: center; font-size: 0.875rem; color: hsl(var(--muted-foreground)); margin-bottom: 1rem;">
+                    📊 Datos de solo lectura - No editable
+                </p>
+            
+                <!-- Filtros -->
+                <div class="filters-container">
+                    <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 0.75rem; color: hsl(var(--foreground));">
+                        🔍 Filtros
+                    </h4>
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Imagen:</label>
+                            <input type="text" id="filtroImagen" class="input" placeholder="Filtrar por imagen">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Lote:</label>
+                            <input type="number" id="filtroLote" class="input" placeholder="Número de lote">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Fecha desde:</label>
+                            <input type="date" id="filtroFechaDesde" class="input">
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Fecha hasta:</label>
+                            <input type="date" id="filtroFechaHasta" class="input">
+                        </div>
+                        <div class="filter-group" style="align-self: end;">
+                            <button class="btn btn-secondary" onclick="limpiarFiltrosHistorico()">
+                                🧹 Limpiar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla -->
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>📅 Fecha</th>
+                                <th>🖼️ Imagen</th>
+                                <th>📦 Lote</th>
+                                <th>📊 Slabs</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaHistoricaBody">
+                            <!-- Se llenará dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; font-size: 0.875rem; color: hsl(var(--muted-foreground));">
+                    <span id="contadorRegistros">Cargando...</span>
+                    <button class="btn btn-primary" onclick="descargarCSVHistorico()">
+                        📥 Descargar CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== VARIABLES GLOBALES =====
+        
+        let currentFile = null;
+        let currentActiveImage = null;
+        let currentImageName = null;
+        let uploadedImages = [];
+        let manualPoints = [];
+        let selectedSlabs = [];
+        let batches = [];
+        let nextBatchNumber = 1;
+        let lastBatchNumber = 0;
+        let isEditMode = false;
+        let editModeType = null; // 'slabs' o 'batches'
+        let isDrawing = false;
+        let selectionPath = [];
+        
+        // ===== FUNCIÓN DE TOGGLE DE TEMA =====
+        
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeBtn = document.querySelector('.theme-toggle');
+            
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                themeBtn.textContent = '🌙';
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                themeBtn.textContent = '☀️';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Restaurar tema guardado
+        window.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme');
+            const html = document.documentElement;
+            const themeBtn = document.querySelector('.theme-toggle');
+            
+            if (savedTheme === 'light') {
+                html.classList.remove('dark');
+                themeBtn.textContent = '🌙';
+            } else {
+                html.classList.add('dark');
+                themeBtn.textContent = '☀️';
+            }
+        });
+        
+        // ===== GESTIÓN DE ARCHIVOS MEJORADA =====
+        
+        document.getElementById('uploadArea').addEventListener('click', function(e) {
+            if (!e.target.classList.contains('btn')) {
+                document.getElementById('fileInput').click();
+            }
+        });
+
+        document.getElementById('uploadArea').addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('drag-over');
+        });
+
+        document.getElementById('uploadArea').addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+        });
+
+        document.getElementById('uploadArea').addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                handleFileSelect(this.files[0]);
+            }
+        });
+
+        // ===== CONTROL DE CONFIDENCE MEJORADO =====
+        
+        const confidenceSlider = document.getElementById('confidenceSlider');
+        const confidenceValue = document.getElementById('confidenceValue');
+        
+        confidenceSlider.addEventListener('input', function() {
+            confidenceValue.textContent = parseFloat(this.value).toFixed(2);
+        });
+
+        // ===== FUNCIONES DE MANEJO DE ARCHIVOS =====
+        
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                showAlert('❌ Por favor selecciona un archivo de imagen válido', 'error');
+                return;
+            }
+
+            const maxSize = 16 * 1024 * 1024; // 16MB
+            if (file.size > maxSize) {
+                showAlert('❌ El archivo es demasiado grande. Máximo 16MB', 'error');
+                return;
+            }
+
+            currentFile = file;
+            currentImageName = file.name;
+            
+            // Habilitar botón de detección
+            document.getElementById('detectBtn').disabled = false;
+            
+            // Mostrar preview de la imagen
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                showImagePreview(e.target.result);
+            };
+            reader.readAsDataURL(file);
+            
+            showAlert('✅ Imagen cargada correctamente', 'success');
+        }
+
+        function showImagePreview(imageSrc) {
+            const container = document.getElementById('imageContainer');
+            const noImageDiv = document.getElementById('noActiveImage');
+            
+            // Ocultar placeholder
+            noImageDiv.style.display = 'none';
+            
+            // Crear elemento de imagen
+            container.innerHTML = `
+                <img id="resultImg" src="${imageSrc}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+            `;
+            
+            // Mostrar botones de control
+            document.getElementById('previewBtn').style.display = 'inline-flex';
+            document.getElementById('zoomResetBtn').style.display = 'inline-flex';
+        }
+
+        // ===== FUNCIÓN DE DETECCIÓN =====
+        
+        document.getElementById('detectBtn').addEventListener('click', function() {
+            if (!currentFile) {
+                showAlert('❌ Selecciona una imagen primero', 'error');
+                return;
+            }
+
+            this.disabled = true;
+            this.innerHTML = '🔄 Detectando...';
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('confidence', document.getElementById('confidenceSlider').value);
+
+            fetch('/detect', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showDetectionResults(data);
+                    addImageToGrid(data);
+                    showAlert(`✅ Detección completada: ${data.count} slabs encontrados`, 'success');
+                } else {
+                    showAlert('❌ Error en la detección: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('❌ Error de conexión', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '🔍 Detectar Slabs';
+            });
+        });
+
+        // ===== ALERTAS MODERNAS =====
+        
+        function showAlert(message, type) {
+            // Remover alertas anteriores
+            const existingAlerts = document.querySelectorAll('.alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            // Crear nueva alerta
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            document.body.appendChild(alert);
+            
+            // Remover después de 4 segundos
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.style.animation = 'slideInRight 0.3s ease-out reverse';
+                    setTimeout(() => {
+                        alert.remove();
+                    }, 300);
+                }
+            }, 4000);
+        }
+
+        // ===== FUNCIÓN PLACEHOLDER PARA COMPATIBILIDAD =====
+        
+        function showDetectionResults(data) {
+            console.log('Mostrando resultados de detección:', data);
+            // Esta función se expandirá con toda la lógica de detección
+        }
+
+        function addImageToGrid(data) {
+            console.log('Agregando imagen al grid:', data);
+            // Esta función se expandirá con la lógica del grid
+        }
+
+        // ===== FUNCIONES DE MODAL =====
+        
+        function openBatchModal() {
+            const modal = document.getElementById('batchModal');
+            modal.classList.add('show');
+        }
+
+        function closeBatchModal() {
+            const modal = document.getElementById('batchModal');
+            modal.classList.remove('show');
+        }
+
+        function confirmBatchAssignment() {
+            console.log('Confirmando asignación de lote');
+            closeBatchModal();
+        }
+
+        function mostrarTablaHistorica() {
+            const modal = document.getElementById('tablaHistoricaModal');
+            modal.classList.add('show');
+        }
+
+        function cerrarTablaHistorica() {
+            const modal = document.getElementById('tablaHistoricaModal');
+            modal.classList.remove('show');
+        }
+
+        function limpiarFiltrosHistorico() {
+            document.getElementById('filtroImagen').value = '';
+            document.getElementById('filtroLote').value = '';
+            document.getElementById('filtroFechaDesde').value = '';
+            document.getElementById('filtroFechaHasta').value = '';
+        }
+
+        function descargarCSVHistorico() {
+            console.log('Descargando CSV histórico');
+        }
+
+        function generateBatchCSV() {
+            console.log('Generando CSV de lotes');
+        }
+
+        // ===== CERRAR MODALES CON ESC =====
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                // Cerrar todos los modales
+                document.querySelectorAll('.modal.show').forEach(modal => {
+                    modal.classList.remove('show');
+                });
+            }
+        });
+
+        // ===== CERRAR MODALES CLICKEANDO FUERA =====
+        
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('show');
+                }
+            });
+        });
+
+        console.log('🚀 Basic Slab Detector V8 Professional Edition inicializado');
+    </script>
+</body>
+</html>
