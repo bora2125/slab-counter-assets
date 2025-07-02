@@ -452,7 +452,7 @@ def index():
     """Página principal"""
     return render_template('basic_index_v8.html')
 
-@app.route('/logo_aza2.JPG')
+@app.route('/logo_aza.JPG')
 def serve_logo():
     """Servir el logo de AZA"""
     return send_from_directory('.', 'logo_aza.JPG')
