@@ -1675,8 +1675,11 @@
                             updateImagesGrid();
                             
                             // Auto-seleccionar la primera imagen si no hay ninguna activa
+                            // DELAY para permitir que la restauración de datos termine COMPLETAMENTE
                             if (!currentActiveImage && uploadedImages.length > 0) {
-                                selectImage(uploadedImages[0].id);
+                                setTimeout(() => {
+                                    selectImage(uploadedImages[0].id);
+                                }, 500); // Medio segundo de delay
                             }
                         }
                     });
@@ -1832,6 +1835,16 @@
                 imagesToShow = uploadedImages;
             }
             
+            // Debug log para rastrear estados
+            if (imagesToShow.length === 1) {
+                const img = imagesToShow[0];
+                console.log(`🔍 DEBUG imagen única: ${img.name}`);
+                console.log(`   - Status: ${img.status}`);
+                console.log(`   - Batches: ${img.batches ? img.batches.length : 0}`);
+                console.log(`   - ManualPoints: ${img.manualPoints ? img.manualPoints.length : 0}`);
+                console.log(`   - DetectionData: ${img.detectionData ? 'Sí' : 'No'}`);
+            }
+            
             // Actualizar contador
             if (filterStatus === 'all') {
                 totalCount.textContent = `Total: ${uploadedImages.length} imágenes`;
@@ -1855,23 +1868,52 @@
             }
             
             const cardsHtml = imagesToShow.map(img => {
-                // Determinar estado más preciso
+                // Debug para imagen única - RASTREAR EL PROBLEMA
+                if (imagesToShow.length === 1) {
+                    console.log(`🔥 ACTUALIZANDO GRID - IMAGEN ÚNICA: ${img.name}`);
+                    console.log(`   - Status interno: '${img.status}'`);
+                    console.log(`   - Batches: ${img.batches?.length || 0}`);
+                    console.log(`   - ManualPoints: ${img.manualPoints?.length || 0}`);
+                    console.log(`   - DetectionData: ${img.detectionData ? 'Sí' : 'No'}`);
+                }
+                
+                // Determinar estado más preciso y robusto
                 let statusClass, statusText;
+                
+                // 1. Prioridad máxima: si tiene lotes definidos
                 if (img.batches && img.batches.length > 0) {
+                    statusClass = 'with-batches';
+                    statusText = 'Con Lotes';
+                // 2. Si tiene puntos manuales o datos de detección
+                } else if (img.manualPoints && img.manualPoints.length > 0) {
+                    statusClass = 'detected';
+                    statusText = 'Detectado';
+                // 3. Si tiene datos de detección (incluso sin puntos)
+                } else if (img.detectionData && img.detectionData.count > 0) {
+                    statusClass = 'detected';
+                    statusText = 'Detectado';
+                // 4. Estados específicos del flujo
+                } else if (img.status === 'editing') {
+                    statusClass = 'editing';
+                    statusText = 'Editando';
+                } else if (img.status === 'with-batches') {
                     statusClass = 'with-batches';
                     statusText = 'Con Lotes';
                 } else if (img.status === 'detected') {
                     statusClass = 'detected';
                     statusText = 'Detectado';
-                } else if (img.status === 'editing') {
-                    statusClass = 'editing';
-                    statusText = 'Editando';
                 } else if (img.status === 'uploaded') {
                     statusClass = 'uploaded';
                     statusText = 'Cargado';
+                // 5. Por defecto: cargado (NO "procesando")
                 } else {
                     statusClass = 'uploaded';
-                    statusText = 'Procesando';
+                    statusText = 'Cargado';
+                }
+                
+                // Debug final para imagen única
+                if (imagesToShow.length === 1) {
+                    console.log(`🎯 ESTADO FINAL DETERMINADO: ${statusText} (${statusClass})`);
                 }
                 
                 const activeClass = currentActiveImage && currentActiveImage.id === img.id ? 'active' : '';
@@ -1976,8 +2018,26 @@
                 hideResults();
             }
             
-            // Actualizar grid visual y panel de información
-            updateImagesGrid();
+            // PRESERVAR estado ya establecido correctamente
+            console.log(`🔍 ANTES de updateImagesGrid en selectImage: ${imageObj.name} tiene estado '${imageObj.status}'`);
+            console.log(`   - Batches: ${imageObj.batches?.length || 0}`);
+            console.log(`   - ManualPoints: ${imageObj.manualPoints?.length || 0}`);
+            
+            // Solo actualizar grid si el estado no está ya correctamente establecido
+            // Evitar sobrescribir "with-batches" con "procesando"
+            const shouldUpdateGrid = !(
+                imageObj.status === 'with-batches' && 
+                imageObj.batches && 
+                imageObj.batches.length > 0
+            );
+            
+            if (shouldUpdateGrid) {
+                console.log(`🔄 Actualizando grid para ${imageObj.name}`);
+                updateImagesGrid();
+            } else {
+                console.log(`🚫 NO actualizando grid para ${imageObj.name} - estado ya correcto: ${imageObj.status}`);
+            }
+            
             updateActiveImageInfo();
             
             // Inicializar estado del botón preview

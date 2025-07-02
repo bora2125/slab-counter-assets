@@ -10,6 +10,11 @@ import io
 import json
 import csv
 from datetime import datetime
+import threading
+import hashlib
+import tempfile
+import shutil
+from contextlib import contextmanager
 
 app = Flask(__name__)
 
@@ -17,13 +22,20 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 DATA_FOLDER = 'data'
 DATABASE_FOLDER = 'database'
+BACKUP_FOLDER = os.path.join(DATA_FOLDER, 'backups')
 PERSISTENCE_FILE = os.path.join(DATA_FOLDER, 'slab_data.json')
+PERSISTENCE_BACKUP = os.path.join(BACKUP_FOLDER, 'slab_data_backup.json')
 DATABASE_FILE = os.path.join(DATABASE_FOLDER, 'detecciones_historicas.csv')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'bmp', 'tiff', 'webp'}
+
+# Sistema de bloqueos para evitar condiciones de carrera
+_persistence_lock = threading.RLock()
+_database_lock = threading.RLock()
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_FOLDER, exist_ok=True)
 os.makedirs(DATABASE_FOLDER, exist_ok=True)
+os.makedirs(BACKUP_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
@@ -130,6 +142,8 @@ class BasicSlabDetector:
 
 # Instancia global
 detector = BasicSlabDetector()
+
+# Esta función se definirá después de todas las funciones de persistencia
 
 # ===== SISTEMA DE BASE DE DATOS CSV =====
 
@@ -324,128 +338,298 @@ def sincronizar_lote_con_historico(nombre_imagen, numero_lote_anterior, numero_l
 
 # ===== SISTEMA DE PERSISTENCIA =====
 
-def load_persistent_data():
-    """Carga datos persistentes desde archivo JSON"""
+@contextmanager
+def persistence_file_lock():
+    """Context manager para bloqueo seguro del archivo de persistencia"""
+    with _persistence_lock:
+        yield
+
+def calculate_file_hash(filepath):
+    """Calcula hash MD5 de un archivo para verificar integridad"""
+    try:
+        hash_md5 = hashlib.md5()
+        with open(filepath, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+    except:
+        return None
+
+def create_backup_if_needed():
+    """Crea respaldo del archivo de persistencia si es necesario"""
     try:
         if os.path.exists(PERSISTENCE_FILE):
-            with open(PERSISTENCE_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-                print(f"✅ Datos persistentes cargados: {len(data.get('images', []))} imágenes")
-                return data
-        else:
-            print("📁 No hay datos persistentes previos")
-            return {"images": [], "next_image_id": 1, "last_updated": None}
+            # Verificar si necesita respaldo (cada hora)
+            backup_needed = True
+            if os.path.exists(PERSISTENCE_BACKUP):
+                persistence_time = os.path.getmtime(PERSISTENCE_FILE)
+                backup_time = os.path.getmtime(PERSISTENCE_BACKUP)
+                backup_needed = (persistence_time - backup_time) > 3600  # 1 hora
+            
+            if backup_needed:
+                shutil.copy2(PERSISTENCE_FILE, PERSISTENCE_BACKUP)
+                print(f"💾 Respaldo creado: {PERSISTENCE_BACKUP}")
     except Exception as e:
-        print(f"❌ Error cargando datos persistentes: {e}")
+        print(f"⚠️ Error creando respaldo: {e}")
+
+def load_persistent_data():
+    """Carga datos persistentes desde archivo JSON con validación robusta"""
+    with persistence_file_lock():
+        # Intentar cargar archivo principal
+        for attempt_file in [PERSISTENCE_FILE, PERSISTENCE_BACKUP]:
+            if not os.path.exists(attempt_file):
+                continue
+                
+            try:
+                with open(attempt_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # Validar estructura básica
+                if not isinstance(data, dict):
+                    raise ValueError("Datos no tienen estructura dict")
+                
+                if 'images' not in data:
+                    data['images'] = []
+                
+                # Validar cada imagen
+                valid_images = []
+                for img in data.get('images', []):
+                    if isinstance(img, dict) and 'name' in img:
+                        # Asegurar campos requeridos
+                        img.setdefault('status', 'loaded')
+                        img.setdefault('manualPoints', [])
+                        img.setdefault('batches', [])
+                        img.setdefault('nextPointId', 1)
+                        valid_images.append(img)
+                
+                data['images'] = valid_images
+                data.setdefault('next_image_id', 1)
+                data.setdefault('last_updated', None)
+                
+                # Si es el respaldo, restaurar al principal
+                if attempt_file == PERSISTENCE_BACKUP:
+                    print(f"🔄 Restaurando desde respaldo...")
+                    save_persistent_data_internal(data)
+                
+                print(f"✅ Datos cargados: {len(data.get('images', []))} imágenes")
+                return data
+                
+            except Exception as e:
+                print(f"❌ Error con {attempt_file}: {e}")
+                continue
+        
+        # Si no se pudo cargar ningún archivo, crear estructura nueva
+        print("🆕 Creando estructura de datos nueva")
         return {"images": [], "next_image_id": 1, "last_updated": None}
 
-def save_persistent_data(data):
-    """Guarda datos persistentes en archivo JSON"""
+def save_persistent_data_internal(data):
+    """Función interna para guardar sin bloqueo (ya debe estar en contexto de bloqueo)"""
     try:
         data["last_updated"] = datetime.now().isoformat()
-        with open(PERSISTENCE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"💾 Datos persistentes guardados: {len(data.get('images', []))} imágenes")
+        
+        # Escribir a archivo temporal primero (operación atómica)
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', 
+                                         dir=DATA_FOLDER, delete=False) as temp_file:
+            json.dump(data, temp_file, indent=2, ensure_ascii=False)
+            temp_filename = temp_file.name
+        
+        # Verificar que se escribió correctamente
+        try:
+            with open(temp_filename, 'r', encoding='utf-8') as f:
+                test_data = json.load(f)
+            if len(test_data.get('images', [])) != len(data.get('images', [])):
+                raise ValueError("Verificación de integridad falló")
+        except Exception as e:
+            os.unlink(temp_filename)
+            raise e
+        
+        # Mover archivo temporal al definitivo (operación atómica)
+        shutil.move(temp_filename, PERSISTENCE_FILE)
+        
+        print(f"💾 Datos guardados: {len(data.get('images', []))} imágenes")
         return True
+        
     except Exception as e:
-        print(f"❌ Error guardando datos persistentes: {e}")
+        print(f"❌ Error guardando datos: {e}")
         return False
 
+def save_persistent_data(data):
+    """Guarda datos persistentes en archivo JSON de forma segura"""
+    with persistence_file_lock():
+        create_backup_if_needed()
+        return save_persistent_data_internal(data)
+
 def find_image_data_by_name(filename):
-    """Busca datos de imagen por nombre de archivo"""
-    persistent_data = load_persistent_data()
-    for img_data in persistent_data.get('images', []):
-        if img_data.get('name') == filename:
-            return img_data
-    return None
+    """Busca datos de imagen por nombre de archivo de forma segura"""
+    with persistence_file_lock():
+        persistent_data = load_persistent_data()
+        for img_data in persistent_data.get('images', []):
+            if img_data.get('name') == filename:
+                return img_data.copy()  # Retornar copia para evitar modificaciones accidentales
+        return None
+
+def verify_image_exists_and_has_data(filename):
+    """Verifica si una imagen existe y tiene datos de lotes"""
+    img_data = find_image_data_by_name(filename)
+    if img_data is None:
+        return False, "Imagen no encontrada en datos persistentes"
+    
+    status = img_data.get('status', 'loaded')
+    manual_points = img_data.get('manualPoints', [])
+    batches = img_data.get('batches', [])
+    
+    if status == 'with-batches' and (manual_points or batches):
+        return True, f"Imagen con {len(manual_points)} puntos y {len(batches)} lotes"
+    else:
+        return False, f"Imagen en estado '{status}' sin datos de lotes"
 
 def save_image_data(image_data):
-    """Guarda o actualiza datos de una imagen específica"""
-    persistent_data = load_persistent_data()
+    """Guarda o actualiza datos de una imagen específica de forma robusta"""
+    if not image_data or not image_data.get('name'):
+        print("❌ Error: Datos de imagen inválidos")
+        return False
     
-    # Buscar si ya existe
-    existing_index = -1
-    for i, img_data in enumerate(persistent_data.get('images', [])):
-        if img_data.get('name') == image_data.get('name'):
-            existing_index = i
-            break
-    
-    # Preparar datos OPTIMIZADOS para guardar (solo lo esencial)
-    detection_summary = None
-    if image_data.get('detectionData'):
-        # Solo guardar resumen de detección, NO los datos completos pesados
-        detection_summary = {
-            'count': image_data['detectionData'].get('count', 0),
-            'confidence_used': 0.60,  # Valor por defecto
-            'detected_at': datetime.now().isoformat()
+    with persistence_file_lock():
+        persistent_data = load_persistent_data()
+        
+        # Buscar si ya existe
+        existing_index = -1
+        for i, img_data in enumerate(persistent_data.get('images', [])):
+            if img_data.get('name') == image_data.get('name'):
+                existing_index = i
+                break
+        
+        # Preparar datos OPTIMIZADOS para guardar (solo lo esencial)
+        detection_summary = None
+        if image_data.get('detectionData'):
+            # Solo guardar resumen de detección, NO los datos completos pesados
+            detection_summary = {
+                'count': image_data['detectionData'].get('count', 0),
+                'confidence_used': image_data.get('confidence_used', 0.60),
+                'detected_at': datetime.now().isoformat()
+            }
+        
+        # Preservar datos existentes importantes
+        existing_data = {}
+        if existing_index >= 0:
+            existing_data = persistent_data['images'][existing_index]
+        
+        data_to_save = {
+            'name': image_data.get('name'),
+            'status': image_data.get('status', existing_data.get('status', 'loaded')),
+            'manualPoints': image_data.get('manualPoints', existing_data.get('manualPoints', [])),
+            'batches': image_data.get('batches', existing_data.get('batches', [])),
+            'nextPointId': image_data.get('nextPointId', existing_data.get('nextPointId', 1)),
+            'detectionSummary': detection_summary or existing_data.get('detectionSummary'),
+            'createdAt': existing_data.get('createdAt', datetime.now().isoformat()),
+            'updatedAt': datetime.now().isoformat()
         }
-    
-    data_to_save = {
-        'name': image_data.get('name'),
-        'status': image_data.get('status'),
-        'manualPoints': image_data.get('manualPoints', []),
-        'batches': image_data.get('batches', []),
-        'nextPointId': image_data.get('nextPointId', 1),
-        'detectionSummary': detection_summary,  # Solo resumen, NO datos completos
-        'createdAt': image_data.get('createdAt', datetime.now().isoformat()),
-        'updatedAt': datetime.now().isoformat()
-    }
-    
-    if existing_index >= 0:
-        # Actualizar existente
-        persistent_data['images'][existing_index] = data_to_save
-        print(f"🔄 Datos actualizados para: {image_data.get('name')}")
-    else:
-        # Agregar nuevo
-        persistent_data['images'].append(data_to_save)
-        print(f"➕ Nuevos datos guardados para: {image_data.get('name')}")
-    
-    return save_persistent_data(persistent_data)
+        
+        # Validar datos antes de guardar
+        if not isinstance(data_to_save['manualPoints'], list):
+            data_to_save['manualPoints'] = []
+        if not isinstance(data_to_save['batches'], list):
+            data_to_save['batches'] = []
+        
+        if existing_index >= 0:
+            # Actualizar existente
+            persistent_data['images'][existing_index] = data_to_save
+            print(f"🔄 Datos actualizados para: {image_data.get('name')}")
+        else:
+            # Agregar nuevo
+            persistent_data['images'].append(data_to_save)
+            print(f"➕ Nuevos datos guardados para: {image_data.get('name')}")
+        
+        # Sincronizar con base de datos CSV si tiene lotes
+        if data_to_save['status'] == 'with-batches' and data_to_save['batches']:
+            sync_with_database(data_to_save)
+        
+        return save_persistent_data_internal(persistent_data)
+
+def sync_with_database(image_data):
+    """Sincroniza datos de imagen con la base de datos CSV"""
+    try:
+        if not image_data.get('batches'):
+            return
+        
+        with _database_lock:
+            # Verificar si ya existe en CSV
+            existing_records = leer_base_datos_historica()
+            image_name = image_data['name']
+            
+            # Remover registros antiguos de esta imagen
+            filtered_records = [r for r in existing_records if r['nombre_imagen'] != image_name]
+            
+            # Agregar registros actuales
+            for batch in image_data['batches']:
+                batch_number = batch.get('number', 'N/A')
+                slab_count = len([p for p in image_data.get('manualPoints', []) 
+                                if p.get('batchNumber') == batch_number])
+                
+                new_record = {
+                    'fecha': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    'nombre_imagen': image_name,
+                    'numero_lote': str(batch_number),
+                    'cantidad_slabs': str(slab_count)
+                }
+                filtered_records.append(new_record)
+            
+            # Escribir de vuelta al CSV
+            escribir_base_datos_historica(filtered_records)
+            
+    except Exception as e:
+        print(f"⚠️ Error sincronizando con CSV: {e}")
 
 def optimize_persistent_data():
     """Optimiza el archivo de persistencia eliminando datos pesados innecesarios"""
-    try:
-        if not os.path.exists(PERSISTENCE_FILE):
-            return True
+    with persistence_file_lock():
+        try:
+            data = load_persistent_data()
             
-        # Cargar datos actuales
-        with open(PERSISTENCE_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        
-        # Optimizar cada imagen
-        optimized_images = []
-        for img_data in data.get('images', []):
-            # Crear versión optimizada sin detectionData pesado
-            optimized_img = {
-                'name': img_data.get('name'),
-                'status': img_data.get('status'),
-                'manualPoints': img_data.get('manualPoints', []),
-                'batches': img_data.get('batches', []),
-                'nextPointId': img_data.get('nextPointId', 1),
-                'detectionSummary': img_data.get('detectionSummary'),  # Mantener resumen
-                'createdAt': img_data.get('createdAt'),
-                'updatedAt': img_data.get('updatedAt')
+            # Optimizar cada imagen
+            optimized_images = []
+            for img_data in data.get('images', []):
+                # Crear versión optimizada sin detectionData pesado
+                optimized_img = {
+                    'name': img_data.get('name'),
+                    'status': img_data.get('status'),
+                    'manualPoints': img_data.get('manualPoints', []),
+                    'batches': img_data.get('batches', []),
+                    'nextPointId': img_data.get('nextPointId', 1),
+                    'detectionSummary': img_data.get('detectionSummary'),
+                    'createdAt': img_data.get('createdAt'),
+                    'updatedAt': img_data.get('updatedAt')
+                }
+                optimized_images.append(optimized_img)
+            
+            # Guardar versión optimizada
+            optimized_data = {
+                'images': optimized_images,
+                'next_image_id': data.get('next_image_id', 1),
+                'last_updated': datetime.now().isoformat(),
+                'optimized_at': datetime.now().isoformat()
             }
-            optimized_images.append(optimized_img)
-        
-        # Guardar versión optimizada
-        optimized_data = {
-            'images': optimized_images,
-            'next_image_id': data.get('next_image_id', 1),
-            'last_updated': datetime.now().isoformat(),
-            'optimized_at': datetime.now().isoformat()
-        }
-        
-        # Escribir archivo optimizado
-        with open(PERSISTENCE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(optimized_data, f, indent=2, ensure_ascii=False)
-        
-        print(f"✅ Archivo de persistencia optimizado: {len(optimized_images)} imágenes")
-        return True
-        
+            
+            success = save_persistent_data_internal(optimized_data)
+            if success:
+                print(f"✅ Archivo optimizado: {len(optimized_images)} imágenes")
+            return success
+            
+        except Exception as e:
+            print(f"❌ Error optimizando persistencia: {e}")
+            return False
+
+def escribir_base_datos_historica(registros):
+    """Escribe registros a la base de datos CSV de forma segura"""
+    try:
+        with open(DATABASE_FILE, 'w', newline='', encoding='utf-8') as file:
+            fieldnames = ['fecha', 'nombre_imagen', 'numero_lote', 'cantidad_slabs']
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(registros)
     except Exception as e:
-        print(f"❌ Error optimizando persistencia: {e}")
-        return False
+        print(f"❌ Error escribiendo CSV: {e}")
+        raise e
 
 @app.route('/')
 def index():
@@ -821,5 +1005,24 @@ if __name__ == '__main__':
     print("="*60)
     print("🛑 Presiona CTRL+C para detener el servidor")
     print("="*60)
+    
+    # Inicializar sistema de persistencia robusta
+    print("🔧 Inicializando sistema de persistencia robusto...")
+    try:
+        # Verificar y optimizar datos existentes
+        if os.path.exists(PERSISTENCE_FILE):
+            file_size = os.path.getsize(PERSISTENCE_FILE)
+            if file_size > 500000:  # Si es mayor a 500KB, optimizar
+                print(f"⚠️ Archivo grande detectado ({file_size} bytes), optimizando...")
+                optimize_persistent_data()
+        
+        # Crear respaldo inicial
+        create_backup_if_needed()
+        
+        # Verificar integridad de datos
+        test_data = load_persistent_data()
+        print(f"✅ Sistema de persistencia inicializado: {len(test_data.get('images', []))} imágenes")
+    except Exception as e:
+        print(f"⚠️ Error inicializando persistencia: {e}")
     
     app.run(host='0.0.0.0', port=port, debug=True)
